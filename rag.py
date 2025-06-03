@@ -1,24 +1,29 @@
 """
 This file is for creating RAG using llama and Open Source Embeddings
 """
-import os
-import ollama
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
-from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader, TextLoader
+from langchain_community.document_loaders import DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain.schema import Document
 from langchain.memory import ConversationBufferMemory
-from langchain.chains import RetrievalQA
+from langchain.chains import ConversationalRetrievalChain
 from langchain_huggingface import HuggingFaceEmbeddings # offline - open source
+from langchain_ollama.llms import OllamaLLM
+# from langchain_openai import ChatOpenAI
 
-MODEL = 'llama3.2:1b'
+load_dotenv(override=True)
 
+MODEL = 'qwen3:1.7b'
+OPENAI_MODEL = 'o4-mini'
 # Set our paths
 ROOT = Path(__file__).parent
 DOCS_DIR = ROOT / "knowledge-base/projects"
 CHROMA_DB = ROOT / "chroma_db" 
+
+os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY', 'your-key-if-not-using-env')
 
 # Instantiate our local embedder
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -38,14 +43,22 @@ else:
     vector_store = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=str(CHROMA_DB))
     print(f'Vector store created with {len(chunks)} chunks')
 
-collection = vector_store._collection
-count = collection.count()
+# Instantiate llama chat
+llm = OllamaLLM(model=MODEL)
+# openai_llm = ChatOpenAI(model=OPENAI_MODEL)
 
-# (b) Rough similarity test
-query = "Reference Text"
-results = vector_store.similarity_search(query, k=3)
-print("\nTop 3 chunks for:", query)
-for i, doc in enumerate(results, 1):
-    # each doc is a langchain.schema.Document
-    text_snip = doc.page_content[:200].replace("\n"," ")
-    print(f"  [{i}] …{text_snip!r}…")
+# Set up the conversation memory for the chat
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+# The retiever is an abstraction over the VectorStore that will be used during RAG
+retriever = vector_store.as_retriever()
+
+conversation_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm, 
+    retriever=retriever, 
+    memory=memory
+)
+
+query = "What is the difference between a truthfulness error and a instruction following error in the Cypher project?"
+result = conversation_chain.invoke({'question': query})
+print(result["answer"])
