@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from ..models import Project
 
-from django.core.exceptions import ValidationError
+from django.db.utils import DataError
 
 User = get_user_model()
 
@@ -23,11 +23,11 @@ class ProjectModelTests(TestCase):
         )
         
         self.assertEqual(str(project), 'Test Project')  # Test __str__
-        self.assertEqual(project.owner.email, 'test@test.com')
+        self.assertEqual(project.user.email, 'test@test.com')
 
     def test_project_name_max_length(self):
         """Test name field max_length constraint"""
         project = Project(name='x' * 256, user=self.user)  # Exceeds default CharField max_length
         
-        with self.assertRaises(ValidationError): 
+        with self.assertRaises(DataError): 
             project.save()
