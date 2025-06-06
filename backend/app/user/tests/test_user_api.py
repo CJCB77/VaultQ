@@ -51,7 +51,7 @@ class PublicUserTests(TestCase):
         }
         res = self.client.post(CREATE_USER_URL, payload)
 
-        self.assertEqual(res.data.keys(), {"email"}) # type: ignore
+        self.assertEqual(res.data.keys(), {"email","first_name","last_name"}) # type: ignore
     
     def test_email_already_exists(self):
         create_user(
@@ -59,7 +59,7 @@ class PublicUserTests(TestCase):
             password="test12345"
         )
         payload = {
-            "email":"test@example.gmail",
+            "email":"test@example.com",
             "password":"pass12345"
         }
         res = self.client.post(CREATE_USER_URL, payload)
@@ -151,8 +151,9 @@ class PrivateUserTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, { # type: ignore
-            'name': self.user.first_name,
-            'email': self.user.email
+            'first_name': self.user.first_name,
+            'email': self.user.email,
+            'last_name': self.user.last_name
         })
 
     def test_post_me_not_allowed(self):
