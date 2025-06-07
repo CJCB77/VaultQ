@@ -33,6 +33,7 @@ class ProjectModelTests(TestCase):
             project.save()
     
     def test_project_has_auto_timestamps(self):
+        """Test that auto_now_add and auto_now fields are not automatically set"""
         project = Project.objects.create(
             name="Test project",
             description="Project description"
