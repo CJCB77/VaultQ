@@ -2,16 +2,14 @@
 API Views for the Project model
 """
 
-from models import Project
-from serializers import (
+from .models import Project
+from .serializers import (
     ProjectListSerializer,
     ProjectDetailSerializer,
 )
 
 from rest_framework import (
     viewsets,
-    mixins,
-    status
 )
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -33,3 +31,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return ProjectListSerializer
 
         return self.serializer_class
+
+    def perform_create(self, serializer):
+        """Create a new project"""
+        serializer.save(user=self.request.user)

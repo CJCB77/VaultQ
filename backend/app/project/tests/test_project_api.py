@@ -9,7 +9,10 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from project.models import Project
-from project.serializers import ProjectSerializer
+from project.serializers import (
+    ProjectDetailSerializer,
+    ProjectListSerializer
+)
 
 USER = get_user_model()
 PROJECTS_URL = reverse('project:project-list')
@@ -58,7 +61,7 @@ class PrivateProjectApiTests(TestCase):
         res = self.client.get(PROJECTS_URL)
 
         projects = Project.objects.all().order_by("-created_at")
-        serializer = ProjectSerializer(projects)
+        serializer = ProjectListSerializer(projects, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data) 
@@ -75,7 +78,7 @@ class PrivateProjectApiTests(TestCase):
         res = self.client.get(PROJECTS_URL)
 
         projects = Project.objects.filter(user=self.user)
-        serializer = ProjectSerializer(projects)
+        serializer = ProjectListSerializer(projects, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data) 
@@ -85,11 +88,10 @@ class PrivateProjectApiTests(TestCase):
         payload = {
             "name":"Test Project",
             "description":"Test project description",
-            "user":self.user
         }
 
         res = self.client.post(PROJECTS_URL, payload)
-        project = Project.objects.get(pk=res.data['id']) 
+        project = Project.objects.get(id=res.data['id']) 
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         for key, value in payload.items():
@@ -115,7 +117,7 @@ class PrivateProjectApiTests(TestCase):
     def test_get_project_details(self):
         """Test retrieving the details of a specific project"""
         project = create_sample_project(user=self.user)
-        serializer = ProjectSerializer(project)
+        serializer = ProjectDetailSerializer(project)
         project_detail_url = create_project_details_url(project_id=project.id)  
 
         res = self.client.get(project_detail_url)
@@ -140,7 +142,7 @@ class PrivateProjectApiTests(TestCase):
         res = self.client.put(url, payload)
         project.refresh_from_db()
 
-        serializer = ProjectSerializer(project)
+        serializer = ProjectDetailSerializer(project)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data) 
@@ -178,8 +180,9 @@ class PrivateProjectApiTests(TestCase):
         }
         url = create_project_details_url(project_id=project.id) 
         res = self.client.patch(url, payload)
+        project.refresh_from_db()
 
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(project.user, self.user) 
 
     def test_delete_project(self):
         """Test that an authenticated user can delete a project"""

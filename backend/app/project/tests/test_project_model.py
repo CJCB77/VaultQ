@@ -36,7 +36,8 @@ class ProjectModelTests(TestCase):
         """Test that auto_now_add and auto_now fields are not automatically set"""
         project = Project.objects.create(
             name="Test project",
-            description="Project description"
+            description="Project description",
+            user=self.user
         )
-        self.assertIsNone(project.created_at)
-        self.assertIsNone(project.updated_at)
+        self.assertIsNotNone(project.created_at)
+        self.assertIsNotNone(project.updated_at)
