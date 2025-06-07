@@ -6,7 +6,8 @@ class Project(models.Model):
     """Project model for organizing documents and vector stores"""
     name = models.CharField(
         max_length=255,
-        help_text="Name of the project"
+        help_text="Name of the project",
+        unique=True
     )
     description = models.TextField(
         blank=True,

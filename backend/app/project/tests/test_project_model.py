@@ -31,3 +31,11 @@ class ProjectModelTests(TestCase):
         
         with self.assertRaises(DataError): 
             project.save()
+    
+    def test_project_has_auto_timestamps(self):
+        project = Project.objects.create(
+            name="Test project",
+            description="Project description"
+        )
+        self.assertIsNone(project.created_at)
+        self.assertIsNone(project.updated_at)
