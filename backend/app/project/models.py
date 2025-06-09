@@ -61,7 +61,7 @@ class Document(models.Model):
         related_name="documents",
         help_text="Project this document belongs"
     )
-    file_path = models.FileField(
+    file = models.FileField(
         upload_to=document_upload_path,
         help_text="Uploaded document file"
     )
@@ -79,7 +79,8 @@ class Document(models.Model):
         help_text="Current processing status"
     )
     chunks_count = models.PositiveIntegerField(
-        help_text="Number of chunks created from this document"
+        help_text="Number of chunks created from this document",
+        blank=True
     )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

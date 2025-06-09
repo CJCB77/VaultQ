@@ -11,7 +11,10 @@ import tempfile
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from ..models import Project 
+from ..models import (
+    Project,
+    Document,
+) 
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from ..serializers import DocumentSerializer
@@ -19,7 +22,14 @@ from ..serializers import DocumentSerializer
 User = get_user_model()
 
 def get_project_documents_url(project_id):
+    """Generate URL for accessing documents of a specific project."""
     return reverse('project:project-documents', args=[project_id])
+
+def project_document_download_url(project_id, doc_id):
+    return reverse(
+        'project:project-documents-download',
+        args=[project_id, doc_id]
+    )
 
 class DocumentModelTest(TestCase):
     """Test cases for Document model"""
@@ -37,53 +47,99 @@ class DocumentModelTest(TestCase):
         )
     
     def test_upload_document_to_project(self):
+        """Test uploading a document to a project"""
+        pdf_content = b'%PDF-1.4 Test PDF content'
         sample_pdf_file = SimpleUploadedFile(
             name='test.pdf',
-            content='Test content',
+            content=pdf_content,
             content_type='application/pdf'
         )
-        URL = get_project_documents_url(self.project.id)
-        res = self.client.post(URL, sample_pdf_file)
 
-        project_document = Document.objects.get(id=res.id)
+        url = get_project_documents_url(self.project.id)
+        res = self.client.post(url, {'file':sample_pdf_file}, format='multipart')
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(project_document.name, 'test.pdf')
+        # Exactly one document should be in the db
+        self.assertEqual(Document.objects.count(), 1)
+        doc = Document.objects.get(pk=res.data['id'])
+
+        # Srializer output matched model state
+        self.assertEqual(res.data['name'], 'test.pdf')
+        self.assertEqual(res.data['content_type'].content_type, 'application/pdf')
+        self.assertEqual(res.data['file_size'].file_size, len(pdf_content))
+        self.assertEqual(res.data['processing_status'].processing_status, Document.ProcessingStatus.PENDING)
+        self.assertEqual(res.data['uploaded_by'], self.user.pk)
+        self.assertEqual(doc.project, self.project)
     
-    def test_uploaded_files_fit_content_type(self):
-        sample_image_file = SimpleUploadedFile(
+    def test_invalid_file_upload(self):
+        """Test non-PDF files are rejected"""
+        invalid_file = SimpleUploadedFile(
             name='test_image.jpeg',
             content=b'some_binary_content',
             content_type='image/jpeg).'
         )
-        URL = get_project_documents_url(self.project.id)
-        res = self.client.post(URL, sample_image_file)
+        url = get_project_documents_url(self.project.id)
+        res = self.client.post(url, {'file':invalid_file}, format='multipart')
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(Document.objects.filter(id=res.id).exists())
+        self.assertFalse(Document.objects.filter(project=self.project).exists())
 
     def test_documents_limited_to_project(self):
-          Document.objects.create(
-            name="test.pdf"
-            file = 'projects/project1/documents/test.pdf'
-            content_type = 'application/pdf'
-            project = self.project
+        """Test that only documents for the project are returned when retrieving
+        documents for a project"""
+        Document.objects.create(
+            name="test.pdf",
+            file='projects/project1/documents/test.pdf',
+            file_size=10,
+            content_type='application/pdf',
+            processing_status=Document.ProcessingStatus.COMPLETED,
+            uploaded_by=self.user,
+            project=self.project,
+        )
+        other_project = Project.objects.create(
+            name='Other project',
+            description='Other project description',
+            user=self.user
         )
         Document.objects.create(
-            name="test2.pdf"
-            file = 'projects/project1/documents/test2.pdf'
-            content_type = 'application/pdf'
-            project = self.project
+            name="test2.pdf",
+            file='projects/project1/documents/test2.pdf',
+            content_type='application/pdf',
+            processing_status=Document.ProcessingStatus.COMPLETED,
+            uploaded_by=self.user,
+            project=other_project
         )
 
-        URL = get_project_documents_url(self.project.id)
-        res = self.client.get(URL)
-        documents = Document.objects.filter(project=self.project)
-        serializer = DocumentSerializer(documents)
+        url = get_project_documents_url(self.project.id)
+        res = self.client.get(url)
+
+        docs = Document.objects.filter(project=self.project)
+        serializer = DocumentSerializer(docs)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
 
     def test_donwload_project_document(self):
-        pass
+        # First upload a file
+        content = b'Hello world'
+        uploaded_file = SimpleUploadedFile(
+            'test.pdg',
+            content,
+            content_type='application/pdf'
+        )
+        post_url = get_project_documents_url(self.project)
+        post = self.client.post(post_url, {'file',uploaded_file}, format='multipart')
+        self.assertEqual(post.status_code, status.HTTP_201_CREATED)
+        doc_id = post.data['id']
+
+        # Download the file
+        url = project_document_download_url(self.project.id, doc_id)
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # Check correct headers
+        self.assertEqual(res['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', res['Content-Disposition'])
+        # Body is the same
+        self.assertEqual(res.content, content)
 
