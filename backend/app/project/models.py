@@ -80,7 +80,8 @@ class Document(models.Model):
     )
     chunks_count = models.PositiveIntegerField(
         help_text="Number of chunks created from this document",
-        blank=True
+        blank=True,
+        null=True
     )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -17,15 +17,16 @@ from ..models import (
 ) 
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from ..serializers import DocumentSerializer
+from ..serializers import DocumentListSerializer
 
 User = get_user_model()
 
 def get_project_documents_url(project_id):
     """Generate URL for accessing documents of a specific project."""
-    return reverse('project:project-documents', args=[project_id])
+    return reverse('project:project-documents-list', args=[project_id])
 
 def project_document_download_url(project_id, doc_id):
+    """Generate URL for downloading a document of a specific project."""
     return reverse(
         'project:project-documents-download',
         args=[project_id, doc_id]
@@ -43,7 +44,8 @@ class DocumentModelTest(TestCase):
         self.client.force_authenticate(self.user)
         self.project = Project.objects.create(
             name="Test Project",
-            description="Test project description"
+            description="Test project description",
+            user=self.user
         )
     
     def test_upload_document_to_project(self):
@@ -114,7 +116,7 @@ class DocumentModelTest(TestCase):
         res = self.client.get(url)
 
         docs = Document.objects.filter(project=self.project)
-        serializer = DocumentSerializer(docs)
+        serializer = DocumentListSerializer(docs)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)

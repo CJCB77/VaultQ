@@ -3,6 +3,7 @@ API Views for the Project model
 """
 
 from django.shortcuts import get_object_or_404
+from django.http import FileResponse
 from .models import (
     Project,
     Document
@@ -87,4 +88,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
         )
         return project
 
-    
+    @action(detail=True, methods=['get'], url_path='download')
+    def download(self, request, project_pk=None, pk=None):
+        doc = self.get_object()
+        # Stream the file
+        response = FileResponse(open(doc.file.path, 'rb'),content_type=doc.content_type)
+        response['Content-Disposition'] = f'attachment; filename="{doc.name}"'
+        return response
