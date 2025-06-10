@@ -4,7 +4,7 @@ from django.conf import settings
 
 def document_upload_path(instance, filename):
     """Generate upload path for documents"""
-    return f'projects/{instance.project.id}/documents/{filename}'
+    return f'project/{instance.project.id}/documents/{filename}'
 
 
 class Project(models.Model):

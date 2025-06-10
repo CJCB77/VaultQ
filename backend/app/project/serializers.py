@@ -42,14 +42,14 @@ class DocumentListSerializer(serializers.ModelSerializer):
 
 
 class DocumentDetailSerializer(serializers.ModelSerializer):
-    donwload_url = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
         fields = [
             'id', 'name', 'processing_status', 'chunks_count', 'content_type', 
             'file', 'file_size','uploaded_by','uploaded_at', 'download_url',
-            'created_by'
+            'uploaded_by'
         ]
         read_only_fields = fields 
     
