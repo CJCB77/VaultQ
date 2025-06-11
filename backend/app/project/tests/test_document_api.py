@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from project.models import Project
-import tempfile
 
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -31,6 +30,11 @@ def project_document_download_url(project_id, doc_id):
         'project:project-documents-download',
         args=[project_id, doc_id]
     )
+
+def get_document_detail_url(project_id, doc_id):
+    """Generate URL for document details"""
+    return reverse('project:project-documents-detail', 
+                   args=[project_id, doc_id])
 
 class DocumentModelTest(TestCase):
     """Test cases for Document model"""
@@ -66,11 +70,11 @@ class DocumentModelTest(TestCase):
         doc = Document.objects.get(pk=res.data['id'])
 
         # Srializer output matched model state
-        self.assertEqual(res.data['name'], 'test.pdf')
-        self.assertEqual(res.data['content_type'].content_type, 'application/pdf')
-        self.assertEqual(res.data['file_size'].file_size, len(pdf_content))
-        self.assertEqual(res.data['processing_status'].processing_status, Document.ProcessingStatus.PENDING)
-        self.assertEqual(res.data['uploaded_by'], self.user.pk)
+        self.assertEqual(doc.name, 'test.pdf')
+        self.assertEqual(doc.content_type, 'application/pdf')
+        self.assertEqual(doc.file_size, len(pdf_content))
+        self.assertEqual(doc.processing_status, Document.ProcessingStatus.PENDING)
+        self.assertEqual(doc.uploaded_by, self.user)
         self.assertEqual(doc.project, self.project)
     
     def test_invalid_file_upload(self):
@@ -106,6 +110,7 @@ class DocumentModelTest(TestCase):
         Document.objects.create(
             name="test2.pdf",
             file='projects/project1/documents/test2.pdf',
+            file_size=10,
             content_type='application/pdf',
             processing_status=Document.ProcessingStatus.COMPLETED,
             uploaded_by=self.user,
@@ -116,7 +121,7 @@ class DocumentModelTest(TestCase):
         res = self.client.get(url)
 
         docs = Document.objects.filter(project=self.project)
-        serializer = DocumentListSerializer(docs)
+        serializer = DocumentListSerializer(docs, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
@@ -125,12 +130,12 @@ class DocumentModelTest(TestCase):
         # First upload a file
         content = b'Hello world'
         uploaded_file = SimpleUploadedFile(
-            'test.pdg',
+            'test.pdf',
             content,
             content_type='application/pdf'
         )
-        post_url = get_project_documents_url(self.project)
-        post = self.client.post(post_url, {'file',uploaded_file}, format='multipart')
+        post_url = get_project_documents_url(self.project.id)
+        post = self.client.post(post_url, {'file': uploaded_file}, format='multipart')
         self.assertEqual(post.status_code, status.HTTP_201_CREATED)
         doc_id = post.data['id']
 
@@ -143,5 +148,53 @@ class DocumentModelTest(TestCase):
         self.assertEqual(res['Content-Type'], 'application/pdf')
         self.assertIn('attachment;', res['Content-Disposition'])
         # Body is the same
-        self.assertEqual(res.content, content)
+        response_content = b''.join(res.streaming_content)
+        self.assertEqual(response_content, content)
 
+    def test_deleting_document(self):
+        """Test that a user can delete a document that they own"""
+        doc = Document.objects.create(
+            name="test.pdf",
+            file='projects/project1/documents/test.pdf',
+            file_size=10,
+            content_type='application/pdf',
+            processing_status=Document.ProcessingStatus.COMPLETED,
+            uploaded_by=self.user,
+            project=self.project,
+        )
+        url = get_document_detail_url(self.project.id, doc.id)
+        
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Document.objects.filter(id=doc.id).exists())
+
+    def test_user_cannot_delete_other_document(self):
+        """Test that a user cannot delete a document that they don't own"""
+        Document.objects.create(
+            name="test.pdf",
+            file='projects/project1/documents/test.pdf',
+            file_size=10,
+            content_type='application/pdf',
+            uploaded_by=self.user,
+            project=self.project,
+        )
+        new_user = User.objects.create_user(
+            email='test2@example.com',
+            password='pass12345',
+        )
+        other_user_doc = Document.objects.create(
+            name="test2.pdf",
+            file='projects/project1/documents/test2.pdf',
+            file_size=8,
+            content_type='application/pdf',
+            uploaded_by=new_user,
+            project=self.project,
+        )
+
+        url = get_document_detail_url(self.project.id, other_user_doc.id)
+
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Document.objects.filter(id=other_user_doc.id).exists())

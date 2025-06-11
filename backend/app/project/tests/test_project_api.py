@@ -18,6 +18,7 @@ USER = get_user_model()
 PROJECTS_URL = reverse('project:project-list')
 
 def create_project_details_url(project_id):
+    """Generate URL for accessing details of a specific project."""
     return reverse('project:project-detail', args=[project_id])
 
 def create_sample_project(user, **params):

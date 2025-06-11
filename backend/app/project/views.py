@@ -90,8 +90,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='download')
     def download(self, request, project_pk=None, pk=None):
+        # DRF injected `project_pk` and `pk` for URL resolution
+        # but get_object() will automatically do:
+        #   Document.objects.filter(project__id=project_pk, …).get(pk=pk)
         doc = self.get_object()
         # Stream the file
-        response = FileResponse(open(doc.file.path, 'rb'),content_type=doc.content_type)
+        response = FileResponse(open(doc.file.path, 'rb'), content_type=doc.content_type)
         response['Content-Disposition'] = f'attachment; filename="{doc.name}"'
         return response

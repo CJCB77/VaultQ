@@ -11,9 +11,16 @@ from django.urls import reverse
 class DocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = ['file']
+        fields = ['id','file','name']
         read_only_fields = ['file_size', 'name', 'content_type']
-        extra_kwargs = {'file': {'write_only':True}}
+        extra_kwargs = {'file': {'write_only':True, 'validators': []}}
+        
+    def validate_file(self, uploaded_file):
+        # Reject anything that isn’t a PDF
+        ext = uploaded_file.name.rsplit('.', 1)[-1].lower()
+        if ext != 'pdf' or uploaded_file.content_type != 'application/pdf':
+            raise serializers.ValidationError("Only PDF files are allowed.")
+        return uploaded_file    
     
     def create(self, validated_data):
         request = self.context['request']
@@ -48,7 +55,7 @@ class DocumentDetailSerializer(serializers.ModelSerializer):
         model = Document
         fields = [
             'id', 'name', 'processing_status', 'chunks_count', 'content_type', 
-            'file', 'file_size','uploaded_by','uploaded_at', 'download_url',
+            'file', 'file_size','uploaded_by','created_at', 'download_url',
             'uploaded_by'
         ]
         read_only_fields = fields 
