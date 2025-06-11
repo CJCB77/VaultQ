@@ -18,6 +18,7 @@ from .serializers import (
 
 from rest_framework import (
     viewsets,
+    mixins
 )
 from rest_framework.decorators import action
 from rest_framework.authentication import TokenAuthentication
@@ -47,7 +48,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
-class DocumentViewSet(viewsets.ModelViewSet):
+class DocumentViewSet(mixins.ListModelMixin,
+                      mixins.CreateModelMixin, 
+                      mixins.RetrieveModelMixin, 
+                      mixins.DestroyModelMixin,
+                      viewsets.GenericViewSet):
     serializer_class = DocumentDetailSerializer
     queryset = Document.objects.all()
     authentication_classes = [TokenAuthentication]
