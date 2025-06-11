@@ -183,18 +183,45 @@ class DocumentModelTest(TestCase):
             email='test2@example.com',
             password='pass12345',
         )
+        other_project = Project.objects.create(
+            name="Test Project 2",
+            description="Test project description",
+            user=new_user
+        )
         other_user_doc = Document.objects.create(
             name="test2.pdf",
             file='projects/project1/documents/test2.pdf',
             file_size=8,
             content_type='application/pdf',
             uploaded_by=new_user,
-            project=self.project,
+            project=other_project,
         )
 
-        url = get_document_detail_url(self.project.id, other_user_doc.id)
+        url = get_document_detail_url(other_project.id, other_user_doc.id)
 
         res = self.client.delete(url)
 
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Document.objects.filter(id=other_user_doc.id).exists())
+    
+    def test_cannot_upload_another_users_project(self):
+        """Test that a user cannot upload a document to another user's project"""
+        new_user = User.objects.create_user(
+            email='test2@example.com',
+            password='pass12345',
+        )
+        other_project = Project.objects.create(
+            name="Test Project 2",
+            description="Test project description",
+            user=new_user
+        )
+        file_upload = SimpleUploadedFile(
+            name='test.pdf',
+            content=b'Foo',
+            content_type='application/pdf'
+        )
+
+        url = get_project_documents_url(other_project.id)
+        res = self.client.post(url, {'file': file_upload}, format='multipart')
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
