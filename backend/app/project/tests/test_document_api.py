@@ -4,6 +4,7 @@ Tests for the Document model API
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.conf import settings
 
 from project.models import Project
 
@@ -17,6 +18,9 @@ from ..models import (
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from ..serializers import DocumentListSerializer
+import tempfile
+import shutil
+
 
 User = get_user_model()
 
@@ -39,7 +43,21 @@ def get_document_detail_url(project_id, doc_id):
 class DocumentModelTest(TestCase):
     """Test cases for Document model"""
 
+    @classmethod
+    def setUpClass(cls):
+        """Set up a temporary media directory for the test class."""
+        super().setUpClass()
+        # Create a clean temp dir and path MEDIA_ROOT into settings
+        cls._orig_media_root = settings.MEDIA_ROOT
+        cls._temp_media = tempfile.mkdtemp(prefix="test_media_")
+        settings.MEDIA_ROOT = cls._temp_media
+
     def setUp(self):
+        """Set up client and user for test
+        - Create a user
+        - Create a client and authenticate as the user
+        - Create a project for the user
+        """
         self.client = APIClient()
         self.user = User.objects.create_user(
             email='test@example.com',
@@ -52,6 +70,14 @@ class DocumentModelTest(TestCase):
             user=self.user
         )
     
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up temporary media folder and restore original settings."""
+        super().tearDownClass()
+        # Remove the temp dir and restore the original
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        settings.MEDIA_ROOT = cls._orig_media_root
+
     def test_upload_document_to_project(self):
         """Test uploading a document to a project"""
         pdf_content = b'%PDF-1.4 Test PDF content'

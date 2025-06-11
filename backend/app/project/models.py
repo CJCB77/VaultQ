@@ -1,10 +1,12 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+
 
 
 def document_upload_path(instance, filename):
     """Generate upload path for documents"""
-    return f'project/{instance.project.id}/documents/{filename}'
+    return f'documents/project_{instance.project.id}/{timezone.now().strftime('%Y/%m')}/{filename}'
 
 
 class Project(models.Model):
