@@ -9,6 +9,10 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
+import logging
+
+log = logging.getLogger(__name__)
+
 @shared_task(bind=True, max_retries=3)
 def process_document_task(self, doc_id: int):
     """
@@ -17,6 +21,7 @@ def process_document_task(self, doc_id: int):
     2) Load & chunk
     3) embed & upsert into project's Chroma store
     """
+    log.info(f"Starting processing for doc {doc_id}")
     try:
         doc = Document.objects.get(pk=doc_id)
         # 1) Mark as processing
@@ -45,6 +50,7 @@ def process_document_task(self, doc_id: int):
             doc.project.save(update_fields=["chroma_collection"])
         
         vectordir = settings.CHROMA_ROOT / f"projects/{doc.project.id}"
+        vectordir.mkdir(parents=True, exist_ok=True)
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
@@ -54,7 +60,6 @@ def process_document_task(self, doc_id: int):
             persist_directory=str(vectordir),
             collection_name=coll_name
         )
-        store.persist()
 
         # 4) Finalize 
         doc.chunks_count = len(chunks)
@@ -69,6 +74,7 @@ def process_document_task(self, doc_id: int):
 
     except Exception as e:
         # mark failure
+        log.exception(f"Error processing doc {doc_id}")
         doc.processing_status = Document.ProcessingStatus.FAILED
         doc.save(update_fields=["processing_status"])
         # re-raise so celery knows it failed

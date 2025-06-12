@@ -138,6 +138,13 @@ AUTH_USER_MODEL = 'user.USER'
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+    ),
+}
+
+SPECTACULAR_SETTINGS = {
+    'COMPONENT_SPLIT_REQUEST':True,
 }
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -145,8 +152,8 @@ MEDIA_URL = '/media/'
 
 CHROMA_ROOT = BASE_DIR / 'chroma_storage'
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BAKEND = CELERY_BROKER_URL
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

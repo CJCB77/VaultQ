@@ -1,3 +1,10 @@
+# ignore all uploaded media
+/media/
+/media/**
+
+# ignore chroma’s on-disk store
+/chroma_storage/
+/chroma_storage/**
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
