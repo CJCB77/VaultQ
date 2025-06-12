@@ -4,6 +4,7 @@ API Views for the Project model
 
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
+from django.db import transaction
 from .models import (
     Project,
     Document
@@ -23,6 +24,7 @@ from rest_framework import (
 from rest_framework.decorators import action
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from .tasks import process_document_task
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -92,6 +94,10 @@ class DocumentViewSet(mixins.ListModelMixin,
             user=self.request.user
         )
         return project
+
+    def perform_create(self, serializer):
+        doc = serializer.save()
+        transaction.on_commit(lambda: process_document_task.delay(doc.id)) # type: ignore
 
     @action(detail=True, methods=['get'], url_path='download')
     def download(self, request, project_pk=None, pk=None):
