@@ -13,7 +13,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True)
 def process_document_task(self, doc_id: int):
     """
     Celery task to:
@@ -78,4 +78,4 @@ def process_document_task(self, doc_id: int):
         doc.processing_status = Document.ProcessingStatus.FAILED
         doc.save(update_fields=["processing_status"])
         # re-raise so celery knows it failed
-        raise self.retry(exc=e, countdown=30)
+        raise 

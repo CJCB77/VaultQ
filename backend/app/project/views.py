@@ -24,7 +24,7 @@ from rest_framework import (
 from rest_framework.decorators import action
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .tasks import process_document_task
+from project.tasks import process_document_task
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
