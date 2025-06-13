@@ -12,6 +12,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import logging
 
 log = logging.getLogger(__name__)
+from pathlib import Path
+
 
 @shared_task(bind=True)
 def process_document_task(self, doc_id: int):
@@ -49,7 +51,7 @@ def process_document_task(self, doc_id: int):
             doc.project.chroma_collection = coll_name
             doc.project.save(update_fields=["chroma_collection"])
         
-        vectordir = settings.CHROMA_ROOT / f"projects/{doc.project.id}"
+        vectordir = Path(settings.CHROMA_ROOT) / "projects" / str(doc.project.id)
         vectordir.mkdir(parents=True, exist_ok=True)
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"

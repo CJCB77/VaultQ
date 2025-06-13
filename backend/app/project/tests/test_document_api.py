@@ -264,6 +264,7 @@ class DocumentModelTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
+    @patch('project.views.transaction.on_commit', lambda cb: cb())
     @patch('project.views.process_document_task.delay')
     def test_upload_trigger_celery_task(self, mock_delay):
         """Uploading a valid PDF should enqueue the ingestion Celery task."""
@@ -375,7 +376,7 @@ class DocumentModelTest(TestCase):
         # Check from_documents was called with our fake_chunks
         mock_chroma.from_documents.assert_called_once()
     
-    @patch('project.tasks.RecursiveCharacterTestSplitter.split_documents')
+    @patch('project.tasks.RecursiveCharacterTextSplitter.split_documents')
     @patch('project.tasks.PyPDFLoader')
     def test_process_document_task_failure(
             self,
@@ -390,12 +391,12 @@ class DocumentModelTest(TestCase):
             'bad.pdf', content, content_type='application/pdf'
         )
         doc = Document.objects.create(
-            project      = self.project,
-            uploaded_by  = self.user,
-            name         = uploaded.name,
-            file         = uploaded,
-            file_size    = len(content),
-            content_type = 'application/pdf',
+            project=self.project,
+            uploaded_by=self.user,
+            name=uploaded.name,
+            file=uploaded,
+            file_size=len(content),
+            content_type='application/pdf',
         )
         self.assertEqual(doc.processing_status, Document.ProcessingStatus.PENDING)
         # Stub loader.load() → valid page, but splitter errors
@@ -405,9 +406,8 @@ class DocumentModelTest(TestCase):
         
         # now run the task under a transaction so that our DB writes get committed
         with self.assertRaises(RuntimeError):
-            with transaction.atomic():
                 process_document_task(doc.id)
-                
+
         # Doc must be marked FAILED
         doc.refresh_from_db()
         self.assertEqual(

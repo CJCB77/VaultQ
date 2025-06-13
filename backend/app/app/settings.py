@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "project",
     "user",
     "core",
+    "chat",
 ]
 
 MIDDLEWARE = [

@@ -97,6 +97,7 @@ class DocumentViewSet(mixins.ListModelMixin,
 
     def perform_create(self, serializer):
         doc = serializer.save()
+        # Guarantee document insert is fully committed to db before celery task
         transaction.on_commit(lambda: process_document_task.delay(doc.id)) # type: ignore
 
     @action(detail=True, methods=['get'], url_path='download')
