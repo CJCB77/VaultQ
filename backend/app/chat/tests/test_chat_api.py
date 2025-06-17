@@ -1,7 +1,7 @@
 """
 Tests for the Chat session API endpoints
 """
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, ANY
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -82,11 +82,11 @@ class PrivateChatApiTests(TestCase):
     
     def test_get_project_chats(self):
         ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         ChatSession.objects.create(
-            title="Another test chat session"
+            title="Another test chat session",
             project=self.project
         )
         url = get_chat_session_project_url(self.project.id)
@@ -135,7 +135,7 @@ class PrivateChatApiTests(TestCase):
 
     def test_get_chat_session_metadata(self):
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         url = get_chat_session_details_url(self.project.id, chat.id)
@@ -149,7 +149,7 @@ class PrivateChatApiTests(TestCase):
         
     def test_get_chat_session_messages(self):
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         ChatMessage.objects.bulk_create([
@@ -179,29 +179,46 @@ class PrivateChatApiTests(TestCase):
         self.assertEqual(res.data[1]['id'], user_message.id)
         self.assertEqual(res.data[0]['role'], ChatMessage.SESSION_ROLES.SYSTEM)
 
-
-
-    def test_sent_message_is_stored(self):
+    @patch("chat.rag.run_rag_and_llm")
+    def test_user_and_assistant_messages_are_persisted_and_returned(self, mock_run_rag):
+        mock_run_rag.return_value = "AI's reply"
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         payload = {
-            "session":chat,
-            "content":"Test message",
-            "role": ChatMessage.SESSION_ROLES.USER
+            "content":"Hello AI",
         }
-        url = get_chat_session_details_url(self.project.id, chat.id)
+        url = get_chat_messages_url(self.project.id, chat.id)
         res = self.client.post(url, payload)
-        message = ChatMessage.objects.filter(session=chat)
-        serializer = ChatMessageSerializer(message)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(serializer.data, res.data)
-        
+        # Expect two messages to be returned
+        self.assertIsInstance(res.data, list)
+        self.assertEqual(len(res.data), 2)
+
+        self.assertEqual(res.data[0]['content'], payload['content'])
+        self.assertEqual(res.data[0]['role'], 'user')
+        self.assertEqual(res.data[1]['content'], "AI's reply")
+        self.assertEqual(res.data[1]['role'], "assistant")
+
+        # Assert we actually called our RAG+LLM helper
+        # with he full hisotry(system + user) and the collection name
+        mock_run_rag.assert_called_once_with(
+            chat.project.chroma_collection,
+            [
+                {"role": "system",    "content": "You are a helpful assistant."},
+                {"role": "user",      "content": "Hello, AI!"}
+            ]
+        )
+
     def test_delete_chat_session(self):
+        """
+        Test that deleting a chat session returns a 204 status and removes the 
+        session from the database.
+        """
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         url = get_chat_session_details_url(self.project.id, chat.id)
@@ -212,7 +229,7 @@ class PrivateChatApiTests(TestCase):
 
     def test_delete_chat_session_deletes_messages(self):
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         ChatMessage.objects.bulk_create([
@@ -236,7 +253,7 @@ class PrivateChatApiTests(TestCase):
 
     def test_update_chat_session_title(self):
         chat = ChatSession.objects.create(
-            title="Test chat session"
+            title="Test chat session",
             project=self.project
         )
         payload = {
