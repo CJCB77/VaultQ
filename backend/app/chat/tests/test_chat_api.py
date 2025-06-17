@@ -207,8 +207,8 @@ class PrivateChatApiTests(TestCase):
         mock_run_rag.assert_called_once_with(
             chat.project.chroma_collection,
             [
-                {"role": "system",    "content": "You are a helpful assistant."},
-                {"role": "user",      "content": "Hello, AI!"}
+                {"role": "system","content": "You are a helpful assistant."},
+                {"role": "user","content": "Hello, AI!"}
             ]
         )
 

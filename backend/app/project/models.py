@@ -49,7 +49,7 @@ class Document(models.Model):
 
     class ProcessingStatus(models.TextChoices):
         PENDING = 'pending', 'Pending'
-        PROCESSING = 'processing', 'Processing',
+        PROCESSING = 'processing', 'Processing'
         COMPLETED = 'completed', 'Completed'
         FAILED = 'failed', 'Failed'
 
